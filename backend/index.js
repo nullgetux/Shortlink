@@ -101,7 +101,8 @@ app.post('/shorten', (req, res) => {
 app.get('/:short_url', (req, res) => {
   const { short_url } = req.params;
 
-  const query = 'SELECT original_url FROM urls WHERE short_url = ?';
+  // First, retrieve the original URL and the current click count
+  const query = 'SELECT original_url, click_count FROM urls WHERE short_url = ?';
   db.query(query, [short_url], (err, results) => {
     if (err) {
       return res.status(500).json({ error: 'Database error.' });
@@ -111,9 +112,23 @@ app.get('/:short_url', (req, res) => {
       return res.status(404).json({ error: 'URL not found.' });
     }
 
-    res.redirect(results[0].original_url);
+    // Increment the click count
+    const original_url = results[0].original_url;
+    const updatedClickCount = results[0].click_count + 1;
+
+    // Update the click count in the database
+    const updateQuery = 'UPDATE urls SET click_count = ? WHERE short_url = ?';
+    db.query(updateQuery, [updatedClickCount, short_url], (err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error.' });
+      }
+
+      // Redirect to the original URL
+      res.redirect(original_url);
+    });
   });
 });
+
 
 // Start the server
 app.listen(port, () => {
